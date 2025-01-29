@@ -339,15 +339,13 @@ func calibrateInventory(xOffset uint, screenshot image.Image) stateFunc {
 		cellMiddleXOffset := cellWidth / 2.0
 		cellMiddleYOffset := cellHeight / 2.0
 
-		const inventoryRows = 7
-		const inventoryColumns = 4
-		inventorySlots := make([]position, inventoryRows*inventoryColumns)
-		for cy := range inventoryRows {
-			for cx := range inventoryColumns {
+		inventorySlots := make([]position, MaxInventorySlots)
+		for cy := range InventoryRows {
+			for cx := range InventoryColumns {
 				x := topLeft.Middle.X + cellWidth*cx + cellMiddleXOffset
 				y := topLeft.Middle.Y + cellHeight*cy + cellMiddleYOffset
 
-				si := cy*inventoryColumns + cx
+				si := cy*InventoryColumns + cx
 				inventorySlots[si].X = uint(x) + xOffset
 				inventorySlots[si].Y = uint(y)
 			}

@@ -12,6 +12,12 @@ import (
 	hook "github.com/robotn/gohook"
 )
 
+const (
+	InventoryRows     = 7
+	InventoryColumns  = 4
+	MaxInventorySlots = InventoryRows * InventoryColumns
+)
+
 type config struct {
 	DryRun                bool
 	TimeScale             float32
@@ -63,7 +69,7 @@ func main() {
 
 func validateConfig(conf config) error {
 	totalPotions := conf.NumberOfAbsorbPotions + conf.NumberOfBlackPotions
-	if totalPotions > 7*4 {
+	if totalPotions > MaxInventorySlots {
 		return fmt.Errorf("total number of potions exceed inventory size, total: %d", totalPotions)
 	}
 	return nil
