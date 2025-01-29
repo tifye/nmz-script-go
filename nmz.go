@@ -190,21 +190,37 @@ func errState(err error) stateFunc {
 	}
 }
 
-//go:embed calibration/star.png
-var starCalibrationRef []byte
+//go:embed calibration/landmark_1.png
+var landmark1CalibrationRef []byte
+
+//go:embed calibration/landmark_2.png
+var landmark2CalibrationRef []byte
+
+//go:embed calibration/landmark_3.png
+var landmark3CalibrationRef []byte
 
 func calibrate(m *machine) stateFunc {
 	m.logger.Info("begining calibration")
 
-	refImageFile := bytes.NewReader(starCalibrationRef)
-	refImage, _, err := image.Decode(refImageFile)
+	landmark1, _, err := image.Decode(bytes.NewReader(landmark1CalibrationRef))
+	if err != nil {
+		return errState(err)
+	}
+	landmark2, _, err := image.Decode(bytes.NewReader(landmark2CalibrationRef))
+	if err != nil {
+		return errState(err)
+	}
+	landmark3, _, err := image.Decode(bytes.NewReader(landmark3CalibrationRef))
 	if err != nil {
 		return errState(err)
 	}
 
+	landmarks := []image.Image{landmark1, landmark2, landmark3}
+
 	displayId := -1
 	x, y, w, h := 0, 0, 0, 0
 	var img image.Image
+displays:
 	for i := range robotgo.DisplaysNum() {
 		x, y, w, h = robotgo.GetDisplayBounds(i)
 		m.logger.Debugf("display %d, [x,y][%d,%d] [w,h][%d,%d]", i, x, y, w, h)
@@ -215,11 +231,15 @@ func calibrate(m *machine) stateFunc {
 			return errState(err)
 		}
 
-		results := gcv.FindAllImg(refImage, img)
-		if len(results) > 0 {
-			m.logger.Debugf("found star on display %d", i)
-			displayId = i
-			break
+		for j, l := range landmarks {
+			results := gcv.FindAllImg(l, img)
+			if len(results) > 0 {
+				m.logger.Debugf("landmark %d matched on display %d", j+1, i)
+				displayId = i
+				break displays
+			} else {
+				m.logger.Debugf("landmark %d failed", j+1)
+			}
 		}
 	}
 
