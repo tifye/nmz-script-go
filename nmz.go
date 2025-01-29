@@ -115,7 +115,7 @@ func drinkBlackPots(m *machine) stateFunc {
 		return drinkAbsorbsPots
 	}
 
-	m.nextBlackRepotTime = m.tclock.Future(randomMilisecondDuration(300, 15))
+	m.nextBlackRepotTime = m.tclock.Future(randomSecondDuration(300, 15))
 	m.drankPots = true
 
 	if _, err := m.sleep(randomSecondDuration(1, 2)); err != nil {
@@ -140,7 +140,7 @@ func drinkAbsorbsPots(m *machine) stateFunc {
 		return waitForReset
 	}
 
-	m.nextAbsorbRepotTime = m.tclock.Future(randomMilisecondDuration(300, 15))
+	m.nextAbsorbRepotTime = m.tclock.Future(randomSecondDuration(300, 15))
 	m.drankPots = true
 
 	return waitForReset
