@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
-	"time"
+	"errors"
+	"os"
+	"os/signal"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
 	"github.com/go-vgo/robotgo"
+	hook "github.com/robotn/gohook"
 )
 
 type config struct {
@@ -35,12 +38,6 @@ func main() {
 		logger.Fatalf("failed to load config: %s", err)
 	}
 
-	// hook.Register(hook.KeyDown, []string{"esc"}, func(e hook.Event) {
-	// 	hook.End()
-	// })
-	// s := hook.Start()
-	// <-hook.Process(s)
-
 	numDisplays := robotgo.DisplaysNum()
 	logger.Debugf("%d displays found", numDisplays)
 	logger.Debugf("no display set, defaulting to display %d", targetDisplay)
@@ -67,8 +64,17 @@ func main() {
 		pconfig.AbsorbPotPositions[i].Y = uint(p.Y * hf)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+	ctx, cancelCause := context.WithCancelCause(ctx)
+
+	hook.Register(hook.KeyDown, []string{"esc"}, func(e hook.Event) {
+		cancelCause(errors.New("user interrupt"))
+	})
+	hookEvsChan := hook.Start()
+	defer hook.End()
+	go hook.Process(hookEvsChan)
+
 	m := newMachine(
 		ctx,
 		logger,

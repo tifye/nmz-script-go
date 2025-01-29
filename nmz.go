@@ -71,7 +71,7 @@ func (m *machine) sleep(d time.Duration) (time.Time, error) {
 	case t := <-m.sleepTimer.C:
 		return t, nil
 	case <-m.ctx.Done():
-		return time.Time{}, m.ctx.Err()
+		return time.Time{}, context.Cause(m.ctx)
 	}
 }
 
@@ -157,6 +157,12 @@ func waitForReset(m *machine) stateFunc {
 	defer ticker.Stop()
 	ticks := 0
 	for cur := range ticker.C {
+		select {
+		case <-m.ctx.Done():
+			return errState(context.Cause(m.ctx))
+		default:
+		}
+
 		if deadline.Before(cur) {
 			m.logger.Infof("waited for %v", time.Since(start))
 
