@@ -21,17 +21,10 @@ type potionBag struct {
 	potions []pot
 }
 
-func newPotionBag(potPositions []position, dryRun bool) *potionBag {
+func newPotionBag(numPots uint, dryRun bool) *potionBag {
 	potBag := &potionBag{
-		potions: make([]pot, len(potPositions)),
+		potions: make([]pot, numPots),
 		dryRun:  dryRun,
-	}
-	for i := range potBag.potions {
-		potBag.potions[i] = pot{
-			x:     potPositions[i].X,
-			y:     potPositions[i].Y,
-			doses: 4,
-		}
 	}
 	return potBag
 }

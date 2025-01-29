@@ -10,11 +10,11 @@ import (
 
 const inventoryTopLeftCorner = "inventory_top_left_corner.png"
 const inventoryBottomRightCorner = "inventory_bottom_right_corner.png"
-const xOffset = 2560
+const xOffset = 0
 
 func main() {
-
-	robotgo.SaveCapture("test.png", 0, 0, 1920, 1080)
+	robotgo.DisplayID = 1
+	robotgo.SaveCapture("test.png", -2560, 0, 2560, 1440)
 
 	results := gcv.FindAllImgFile(inventoryTopLeftCorner, "test.png")
 	fmt.Printf("found %d results for %s\n", len(results), inventoryTopLeftCorner)
