@@ -17,6 +17,8 @@ github.com/go-logfmt/logfmt v0.6.0/go.mod h1:WYhtIu8zTZfxdn5+rREduYbwxfcBr/Vr6KE
 github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
+github.com/go-vgo/gt v0.42.0 h1:8HUJhjVawBuQxZCRioBEXR/JqR9t5iHbgHAHGHOUZwM=
+github.com/go-vgo/gt v0.42.0/go.mod h1:LnBOW1OSqlsQB/pjc9E3QEuQ8qqWPDBZZ0J9DGVCRkI=
 github.com/go-vgo/robotgo v0.110.5 h1:F3meroJVBPvxncoHX9ZoD1Gal+pYywu1MLPcJkN5oEw=
 github.com/go-vgo/robotgo v0.110.5/go.mod h1:MzgZR4XAnlhBAe4ExLcJebisDUfbYoh3ekaP/s/XRqQ=
 github.com/godbus/dbus/v5 v5.1.0 h1:4KLkAxT3aOY8Li4FRJe/KvhoNFFxo0m6fNuFUO8QJUk=
@@ -62,6 +64,8 @@ github.com/tklauser/go-sysconf v0.3.14 h1:g5vzr9iPFFz24v2KZXs/pvpvh8/V9Fw6vQK5ZZ
 github.com/tklauser/go-sysconf v0.3.14/go.mod h1:1ym4lWMLUOhuBOPGtRcJm7tEGX4SCYNEEEtghGG/8uY=
 github.com/tklauser/numcpus v0.9.0 h1:lmyCHtANi8aRUgkckBgoDk1nHCux3n2cgkJLXdQGPDo=
 github.com/tklauser/numcpus v0.9.0/go.mod h1:SN6Nq1O3VychhC1npsWostA+oW+VOQTxZrS604NSRyI=
+github.com/vcaesar/gcv v0.43.1 h1:t2zwQ9ZeeP04VqvxOGfyANouvlppoejuo2NMcUUTbUo=
+github.com/vcaesar/gcv v0.43.1/go.mod h1:Ub/YMk32+Jwi1RUu+BLyGrjbAtDoLmQTqoiUJf74wU4=
 github.com/vcaesar/gops v0.40.0 h1:I+1RCGiV+LkZJUYNzAd373xs0uM2UyeFdZBmow8HfCM=
 github.com/vcaesar/gops v0.40.0/go.mod h1:3u/USW7JovqUK6i13VOD3qWfvXXd2TIIKE4PYIv4TOM=
 github.com/vcaesar/imgo v0.40.2 h1:5GWScRLdBCMtO1v2I1bs+ZmDLZFINxYSMZ+mtUw5qPM=
@@ -72,6 +76,8 @@ github.com/vcaesar/tt v0.20.1 h1:D/jUeeVCNbq3ad8M7hhtB3J9x5RZ6I1n1eZ0BJp7M+4=
 github.com/vcaesar/tt v0.20.1/go.mod h1:cH2+AwGAJm19Wa6xvEa+0r+sXDJBT0QgNQey6mwqLeU=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
+gocv.io/x/gocv v0.40.0 h1:kGBu/UVj+dO6A9dhQmGOnCICSL7ke7b5YtX3R3azdXI=
+gocv.io/x/gocv v0.40.0/go.mod h1:zYdWMj29WAEznM3Y8NsU3A0TRq/wR/cy75jeUypThqU=
 golang.org/x/exp v0.0.0-20241004190924-225e2abe05e6 h1:1wqE9dj9NpSm04INVsJhhEUzhuDVjbcyKH91sVyPATw=
 golang.org/x/exp v0.0.0-20241004190924-225e2abe05e6/go.mod h1:NQtJDoLvd6faHhE7m4T/1IY708gDefGGjR/iUW8yQQ8=
 golang.org/x/image v0.21.0 h1:c5qV36ajHpdj4Qi0GnE0jUc/yuo33OLFaa0d+crTD5s=

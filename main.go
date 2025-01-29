@@ -58,6 +58,6 @@ func main() {
 		},
 	}
 
-	m := newMachine(logger, false, simulatedClock{timeScale: 1}, pconfig)
+	m := newMachine(logger, true, simulatedClock{timeScale: 1}, pconfig)
 	m.run()
 }

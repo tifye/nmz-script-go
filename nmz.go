@@ -36,12 +36,14 @@ type stateFunc func(*machine) stateFunc
 func newMachine(logger *log.Logger, dryRun bool, tclock clock, pconfig machineConfig) *machine {
 
 	return &machine{
-		dryRun:       dryRun,
-		logger:       logger,
-		pconfig:      pconfig,
-		blackPotBag:  newPotionBag(pconfig.BlackPotPositions, dryRun),
-		absorbPotBag: newPotionBag(pconfig.AbsorbPotPositions, dryRun),
-		tclock:       tclock,
+		dryRun:              dryRun,
+		logger:              logger,
+		pconfig:             pconfig,
+		blackPotBag:         newPotionBag(pconfig.BlackPotPositions, dryRun),
+		absorbPotBag:        newPotionBag(pconfig.AbsorbPotPositions, dryRun),
+		tclock:              tclock,
+		nextAbsorbRepotTime: time.Now().Add(-5 * time.Hour),
+		nextBlackRepotTime:  time.Now().Add(-5 * time.Hour),
 	}
 }
 
@@ -60,12 +62,14 @@ func flashPrayerOrb(m *machine) stateFunc {
 		robotgo.Click("left", true)
 	}
 	m.drankPots = false
+
+	m.tclock.Sleep(randomMilisecondDuration(300, 300))
 	return drinkBlackPots
 }
 
 func drinkBlackPots(m *machine) stateFunc {
 	m.logger.Debug("before drink back pots", "now", time.Now(), "next", m.nextAbsorbRepotTime)
-	if m.nextBlackRepotTime.Before(time.Now()) {
+	if !m.nextBlackRepotTime.Before(time.Now()) {
 		return drinkAbsorbsPots
 	}
 
@@ -87,7 +91,7 @@ func drinkBlackPots(m *machine) stateFunc {
 
 func drinkAbsorbsPots(m *machine) stateFunc {
 	m.logger.Debug("before drink absorb pots", "now", time.Now(), "next", m.nextAbsorbRepotTime)
-	if m.nextAbsorbRepotTime.Before(time.Now()) {
+	if !m.nextAbsorbRepotTime.Before(time.Now()) {
 		return waitForReset
 	}
 
