@@ -8,7 +8,6 @@ import (
 
 type clock interface {
 	Future(time.Duration) time.Time
-	Sleep(time.Duration)
 	Scale(time.Duration) time.Duration
 }
 
@@ -18,10 +17,6 @@ type simulatedClock struct {
 
 func (s simulatedClock) Future(d time.Duration) time.Time {
 	return time.Now().Add(s.Scale(d))
-}
-
-func (s simulatedClock) Sleep(d time.Duration) {
-	time.Sleep(s.Scale(d))
 }
 
 func (s simulatedClock) Scale(d time.Duration) time.Duration {

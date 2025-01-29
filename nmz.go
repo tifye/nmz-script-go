@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -20,6 +21,8 @@ type machineConfig struct {
 }
 
 type machine struct {
+	ctx                 context.Context
+	sleepTimer          *time.Timer
 	dryRun              bool
 	logger              *log.Logger
 	pconfig             machineConfig
@@ -33,8 +36,7 @@ type machine struct {
 
 type stateFunc func(*machine) stateFunc
 
-func newMachine(logger *log.Logger, dryRun bool, tclock clock, pconfig machineConfig) *machine {
-
+func newMachine(ctx context.Context, logger *log.Logger, dryRun bool, tclock clock, pconfig machineConfig) *machine {
 	return &machine{
 		dryRun:              dryRun,
 		logger:              logger,
@@ -44,6 +46,8 @@ func newMachine(logger *log.Logger, dryRun bool, tclock clock, pconfig machineCo
 		tclock:              tclock,
 		nextAbsorbRepotTime: time.Now().Add(-5 * time.Hour),
 		nextBlackRepotTime:  time.Now().Add(-5 * time.Hour),
+		ctx:                 ctx,
+		sleepTimer:          time.NewTimer(0),
 	}
 }
 
@@ -53,17 +57,40 @@ func (m *machine) run() {
 	}
 }
 
+func (m *machine) sleep(d time.Duration) (time.Time, error) {
+	d = m.tclock.Scale(d)
+	wasActive := m.sleepTimer.Reset(d)
+	if !wasActive {
+		select {
+		case <-m.sleepTimer.C:
+		default:
+		}
+	}
+
+	select {
+	case t := <-m.sleepTimer.C:
+		return t, nil
+	case <-m.ctx.Done():
+		return time.Time{}, m.ctx.Err()
+	}
+}
+
 func flashPrayerOrb(m *machine) stateFunc {
 	m.logger.Info("flashing prayer orb")
 
-	m.tclock.Sleep(randomMilisecondDuration(300, 300))
+	if _, err := m.sleep(randomMilisecondDuration(300, 300)); err != nil {
+		return errState(err)
+	}
+
 	robotgo.Move(int(m.pconfig.PrayerOrbX), int(m.pconfig.PrayerOrbY), 10.0, 1.0, 1000)
 	if !m.dryRun {
 		robotgo.Click("left", true)
 	}
 	m.drankPots = false
 
-	m.tclock.Sleep(randomMilisecondDuration(300, 300))
+	if _, err := m.sleep(randomMilisecondDuration(300, 300)); err != nil {
+		return errState(err)
+	}
 	return drinkBlackPots
 }
 
@@ -74,7 +101,9 @@ func drinkBlackPots(m *machine) stateFunc {
 
 	m.logger.Info("drinking black pots", "potions", m.blackPotBag.size(), "effective", m.blackPotBag.effectiveSize())
 
-	m.tclock.Sleep(randomMilisecondDuration(100, 15))
+	if _, err := m.sleep(randomMilisecondDuration(100, 15)); err != nil {
+		return errState(err)
+	}
 	err := m.blackPotBag.drink()
 	if err != nil {
 		m.logger.Info("out of black pots")
@@ -84,7 +113,9 @@ func drinkBlackPots(m *machine) stateFunc {
 	m.nextBlackRepotTime = m.tclock.Future(randomMilisecondDuration(300, 15))
 	m.drankPots = true
 
-	m.tclock.Sleep(randomSecondDuration(1, 2))
+	if _, err := m.sleep(randomSecondDuration(1, 2)); err != nil {
+		return errState(err)
+	}
 	return drinkAbsorbsPots
 }
 
@@ -95,7 +126,9 @@ func drinkAbsorbsPots(m *machine) stateFunc {
 
 	m.logger.Info("drinking absorbs", "potions", m.absorbPotBag.size(), "effective", m.absorbPotBag.effectiveSize())
 
-	m.tclock.Sleep(randomMilisecondDuration(100, 15))
+	if _, err := m.sleep(randomMilisecondDuration(100, 15)); err != nil {
+		return errState(err)
+	}
 	err := m.absorbPotBag.drink()
 	if err != nil {
 		m.logger.Info("out of absorb pots")
@@ -137,4 +170,11 @@ func waitForReset(m *machine) stateFunc {
 		}
 	}
 	return flashPrayerOrb
+}
+
+func errState(err error) stateFunc {
+	return func(m *machine) stateFunc {
+		m.logger.Error(err)
+		return nil
+	}
 }

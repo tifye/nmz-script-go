@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"time"
+
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
 	"github.com/go-vgo/robotgo"
@@ -32,6 +35,12 @@ func main() {
 		logger.Fatalf("failed to load config: %s", err)
 	}
 
+	// hook.Register(hook.KeyDown, []string{"esc"}, func(e hook.Event) {
+	// 	hook.End()
+	// })
+	// s := hook.Start()
+	// <-hook.Process(s)
+
 	numDisplays := robotgo.DisplaysNum()
 	logger.Debugf("%d displays found", numDisplays)
 	logger.Debugf("no display set, defaulting to display %d", targetDisplay)
@@ -58,7 +67,10 @@ func main() {
 		pconfig.AbsorbPotPositions[i].Y = uint(p.Y * hf)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	m := newMachine(
+		ctx,
 		logger,
 		conf.DryRun,
 		simulatedClock{timeScale: conf.TimeScale},
