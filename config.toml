@@ -1,6 +1,13 @@
+# true/false run without clicks
 DryRun = true
+
+# scale all time values by
 TimeScale = 0.25
-WindowXOffset = 2560
+
+# mouse x offset, use incase of multi-monitor set up and game is not on 1st monitor
+# offset by the width of the monitors
+WindowXOffset = 0
+
 PrayerOrb = { x = 0.867708, y = 0.137037 }
 BlackPotions = [
     { x = 0.870833, y = 0.620370 },
