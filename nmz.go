@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
+	"errors"
+	"image"
+	"math/rand"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/go-vgo/robotgo"
+	"github.com/vcaesar/gcv"
 )
 
 type position struct {
@@ -13,36 +19,45 @@ type position struct {
 	Y uint
 }
 
-type machineConfig struct {
-	PrayerOrbX         uint
-	PrayerOrbY         uint
-	BlackPotPositions  []position
-	AbsorbPotPositions []position
-}
-
 type machine struct {
 	ctx                 context.Context
 	sleepTimer          *time.Timer
 	dryRun              bool
 	logger              *log.Logger
-	pconfig             machineConfig
 	drankPots           bool
 	nextBlackRepotTime  time.Time
 	nextAbsorbRepotTime time.Time
 	blackPotBag         *potionBag
 	absorbPotBag        *potionBag
 	tclock              clock
+	prayerOrbPosition   position
+	conf                config
 }
 
 type stateFunc func(*machine) stateFunc
 
-func newMachine(ctx context.Context, logger *log.Logger, dryRun bool, tclock clock, pconfig machineConfig) *machine {
+func newMachine(
+	ctx context.Context,
+	logger *log.Logger,
+	tclock clock,
+	conf config,
+) *machine {
+	blackPotions := newPotionBag(conf.NumberOfBlackPotions, conf.DryRun)
+	for range MaxDoses - conf.DosesOfFirstBlack {
+		blackPotions.drink()
+	}
+
+	absorbPotions := newPotionBag(conf.NumberOfAbsorbPotions, conf.DryRun)
+	for range MaxDoses - conf.DosesOfFirstAbsorb {
+		absorbPotions.drink()
+	}
+
 	return &machine{
-		dryRun:              dryRun,
+		dryRun:              conf.DryRun,
 		logger:              logger,
-		pconfig:             pconfig,
-		blackPotBag:         newPotionBag(pconfig.BlackPotPositions, dryRun),
-		absorbPotBag:        newPotionBag(pconfig.AbsorbPotPositions, dryRun),
+		conf:                conf,
+		blackPotBag:         blackPotions,
+		absorbPotBag:        absorbPotions,
 		tclock:              tclock,
 		nextAbsorbRepotTime: time.Now().Add(-5 * time.Hour),
 		nextBlackRepotTime:  time.Now().Add(-5 * time.Hour),
@@ -52,7 +67,7 @@ func newMachine(ctx context.Context, logger *log.Logger, dryRun bool, tclock clo
 }
 
 func (m *machine) run() {
-	for state := flashPrayerOrb; state != nil; {
+	for state := calibrateDisplay; state != nil; {
 		state = state(m)
 	}
 }
@@ -82,7 +97,7 @@ func flashPrayerOrb(m *machine) stateFunc {
 		return errState(err)
 	}
 
-	robotgo.Move(int(m.pconfig.PrayerOrbX), int(m.pconfig.PrayerOrbY), 10.0, 1.0, 1000)
+	moveDeviateRandom(m.prayerOrbPosition.X, m.prayerOrbPosition.Y)
 	if !m.dryRun {
 		robotgo.Click("left", true)
 	}
@@ -110,7 +125,7 @@ func drinkBlackPots(m *machine) stateFunc {
 		return drinkAbsorbsPots
 	}
 
-	m.nextBlackRepotTime = m.tclock.Future(randomMilisecondDuration(300, 15))
+	m.nextBlackRepotTime = m.tclock.Future(randomSecondDuration(300, 15))
 	m.drankPots = true
 
 	if _, err := m.sleep(randomSecondDuration(1, 2)); err != nil {
@@ -135,7 +150,7 @@ func drinkAbsorbsPots(m *machine) stateFunc {
 		return waitForReset
 	}
 
-	m.nextAbsorbRepotTime = m.tclock.Future(randomMilisecondDuration(300, 15))
+	m.nextAbsorbRepotTime = m.tclock.Future(randomSecondDuration(300, 15))
 	m.drankPots = true
 
 	return waitForReset
@@ -183,4 +198,207 @@ func errState(err error) stateFunc {
 		m.logger.Error(err)
 		return nil
 	}
+}
+
+//go:embed calibration/landmark_1.png
+var landmark1CalibrationRef []byte
+
+//go:embed calibration/landmark_2.png
+var landmark2CalibrationRef []byte
+
+//go:embed calibration/landmark_3.png
+var landmark3CalibrationRef []byte
+
+func calibrateDisplay(m *machine) stateFunc {
+	m.logger.Info("begining calibration")
+
+	landmark1, _, err := image.Decode(bytes.NewReader(landmark1CalibrationRef))
+	if err != nil {
+		return errState(err)
+	}
+	landmark2, _, err := image.Decode(bytes.NewReader(landmark2CalibrationRef))
+	if err != nil {
+		return errState(err)
+	}
+	landmark3, _, err := image.Decode(bytes.NewReader(landmark3CalibrationRef))
+	if err != nil {
+		return errState(err)
+	}
+
+	landmarks := []image.Image{landmark1, landmark2, landmark3}
+
+	displayId := -1
+	x, y, w, h := 0, 0, 0, 0
+	var img image.Image
+displays:
+	for i := range robotgo.DisplaysNum() {
+		x, y, w, h = robotgo.GetDisplayBounds(i)
+		m.logger.Debugf("display %d, [x,y][%d,%d] [w,h][%d,%d]", i, x, y, w, h)
+
+		robotgo.DisplayID = i
+		img, err = robotgo.CaptureImg(x, y, w, h)
+		if err != nil {
+			return errState(err)
+		}
+
+		for j, l := range landmarks {
+			results := gcv.FindAllImg(l, img)
+			if len(results) > 0 {
+				m.logger.Debugf("landmark %d matched on display %d", j+1, i)
+				displayId = i
+				break displays
+			} else {
+				m.logger.Debugf("landmark %d failed", j+1)
+			}
+		}
+	}
+
+	if displayId == -1 {
+		return errState(errors.New("could not find display with game"))
+	}
+
+	robotgo.DisplayID = displayId
+	xOffset := 0
+	for i := range robotgo.DisplaysNum() {
+		dx, _, dw, _ := robotgo.GetDisplayBounds(i)
+		if dx < x {
+			xOffset = xOffset + dw
+		}
+	}
+
+	return calibratePrayerOrb(uint(xOffset), img)
+}
+
+//go:embed calibration/prayer_orb.png
+var prayerOrbCalibrationRef []byte
+
+func calibratePrayerOrb(xOffset uint, screenshot image.Image) stateFunc {
+	return func(m *machine) stateFunc {
+		m.logger.Info("calibrating prayer orb")
+
+		refImageFile := bytes.NewReader(prayerOrbCalibrationRef)
+		refImage, _, err := image.Decode(refImageFile)
+		if err != nil {
+			return errState(err)
+		}
+
+		results := gcv.FindAllImg(refImage, screenshot)
+		if len(results) <= 0 {
+			return errState(errors.New("prayer orb calibration: could not locate prayer orb"))
+		}
+
+		m.logger.Debugf("found %d prayer orb matches, taking [%d,%d]", len(results), results[0].Middle.X, results[0].Middle.Y)
+		m.prayerOrbPosition.X = uint(results[0].Middle.X) + xOffset
+		m.prayerOrbPosition.Y = uint(results[0].Middle.Y)
+
+		if m.conf.VisualDebug {
+			robotgo.MoveSmooth(int(m.prayerOrbPosition.X), int(m.prayerOrbPosition.Y))
+			if _, err := m.sleep(1 * time.Second); err != nil {
+				return errState(err)
+			}
+		}
+
+		return calibrateInventory(xOffset, screenshot)
+	}
+}
+
+var (
+	//go:embed calibration/inventory_bottom_right_corner.png
+	inventoryBottomRightCalibrationRef []byte
+	//go:embed calibration/inventory_top_left_corner.png
+	inventoryTopLeftCalibrationRef []byte
+)
+
+func calibrateInventory(xOffset uint, screenshot image.Image) stateFunc {
+	return func(m *machine) stateFunc {
+		topLeftRefFile := bytes.NewReader(inventoryTopLeftCalibrationRef)
+		topLeftRef, _, err := image.Decode(topLeftRefFile)
+		if err != nil {
+			return errState(err)
+		}
+		results := gcv.FindAllImg(topLeftRef, screenshot)
+		m.logger.Debugf("found %d top left inventory matches", len(results))
+		if len(results) <= 0 {
+			return errState(errors.New("inventory calibration: could not locate inventory top left corner"))
+		}
+		topLeft := results[0]
+
+		bottomRightRefFile := bytes.NewReader(inventoryBottomRightCalibrationRef)
+		bottomRightRef, _, err := image.Decode(bottomRightRefFile)
+		if err != nil {
+			return errState(err)
+		}
+		results = gcv.FindAllImg(bottomRightRef, screenshot)
+		m.logger.Debugf("found %d bottom right inventory matches", len(results))
+		if len(results) <= 0 {
+			return errState(errors.New("inventory calibration: could not locate inventory bottom right corner"))
+		}
+		bottomRight := results[0]
+
+		if m.conf.VisualDebug {
+			moveDeviateRandom(uint(topLeft.Middle.X)+xOffset, uint(topLeft.Middle.Y))
+			if _, err := m.sleep(time.Second); err != nil {
+				return errState(err)
+			}
+			moveDeviateRandom(uint(bottomRight.Middle.X)+xOffset, uint(bottomRight.Middle.Y))
+			if _, err := m.sleep(time.Second); err != nil {
+				return errState(err)
+			}
+		}
+
+		width := bottomRight.Middle.X - topLeft.Middle.X
+		height := bottomRight.Middle.Y - topLeft.Middle.Y
+		cellWidth := int(float32(width) / 4.0)
+		cellHeight := int(float32(height) / 7.0)
+		cellMiddleXOffset := cellWidth / 2.0
+		cellMiddleYOffset := cellHeight / 2.0
+
+		inventorySlots := make([]position, MaxInventorySlots)
+		for cy := range InventoryRows {
+			for cx := range InventoryColumns {
+				x := topLeft.Middle.X + cellWidth*cx + cellMiddleXOffset
+				y := topLeft.Middle.Y + cellHeight*cy + cellMiddleYOffset
+
+				si := cy*InventoryColumns + cx
+				inventorySlots[si].X = uint(x) + xOffset
+				inventorySlots[si].Y = uint(y)
+			}
+		}
+
+		delay := 200 * time.Millisecond
+		for i := range m.conf.NumberOfBlackPotions {
+			if _, err := m.sleep(delay); err != nil {
+				return errState(err)
+			}
+
+			slot := inventorySlots[i]
+			m.blackPotBag.potions[i].x = slot.X
+			m.blackPotBag.potions[i].y = slot.Y
+			if m.conf.VisualDebug {
+				moveDeviateRandom(slot.X, slot.Y)
+			}
+		}
+
+		for i := range m.conf.NumberOfAbsorbPotions {
+			if _, err := m.sleep(delay); err != nil {
+				return errState(err)
+			}
+
+			slot := inventorySlots[m.conf.NumberOfBlackPotions+i]
+			m.absorbPotBag.potions[i].x = slot.X
+			m.absorbPotBag.potions[i].y = slot.Y
+			if m.conf.VisualDebug {
+				moveDeviateRandom(slot.X, slot.Y)
+			}
+		}
+
+		return flashPrayerOrb
+	}
+}
+
+func moveDeviateRandom(x, y uint) {
+	n := rand.Intn(8) - 4
+	nx := int(x) + n
+	ny := int(y) + n
+	robotgo.Move(nx, ny)
 }

@@ -3,30 +3,31 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
-	"github.com/go-vgo/robotgo"
 	hook "github.com/robotn/gohook"
 )
 
+const (
+	InventoryRows     = 7
+	InventoryColumns  = 4
+	MaxInventorySlots = InventoryRows * InventoryColumns
+	MaxDoses          = 4
+)
+
 type config struct {
-	DryRun        bool
-	TimeScale     float32
-	WindowXOffset uint
-	PrayerOrb     point
-	BlackPotions  []point
-	AbsorbPotions []point
+	DryRun                bool
+	VisualDebug           bool
+	TimeScale             float32
+	NumberOfBlackPotions  uint
+	NumberOfAbsorbPotions uint
+	DosesOfFirstBlack     uint
+	DosesOfFirstAbsorb    uint
 }
-
-type point struct {
-	X float32
-	Y float32
-}
-
-var targetDisplay = 2
 
 func main() {
 	logger := log.Default()
@@ -38,30 +39,9 @@ func main() {
 		logger.Fatalf("failed to load config: %s", err)
 	}
 
-	numDisplays := robotgo.DisplaysNum()
-	logger.Debugf("%d displays found", numDisplays)
-	logger.Debugf("no display set, defaulting to display %d", targetDisplay)
-
-	robotgo.DisplayID = targetDisplay
-
-	x, y, w, h := robotgo.GetDisplayBounds(targetDisplay)
-	logger.Debug("target display bounds", "x", x, "y", y, "w", w, "h", h)
-
-	wf := float32(w)
-	hf := float32(h)
-	pconfig := machineConfig{
-		PrayerOrbX:         uint(conf.PrayerOrb.X) + conf.WindowXOffset,
-		PrayerOrbY:         uint(conf.PrayerOrb.Y),
-		BlackPotPositions:  make([]position, len(conf.BlackPotions)),
-		AbsorbPotPositions: make([]position, len(conf.AbsorbPotions)),
-	}
-	for i, p := range conf.BlackPotions {
-		pconfig.BlackPotPositions[i].X = uint(p.X*wf) + conf.WindowXOffset
-		pconfig.BlackPotPositions[i].Y = uint(p.Y * hf)
-	}
-	for i, p := range conf.AbsorbPotions {
-		pconfig.AbsorbPotPositions[i].X = uint(p.X*wf) + conf.WindowXOffset
-		pconfig.AbsorbPotPositions[i].Y = uint(p.Y * hf)
+	err = validateConfig(conf)
+	if err != nil {
+		logger.Fatalf("invalid config: %s", err)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -78,9 +58,16 @@ func main() {
 	m := newMachine(
 		ctx,
 		logger,
-		conf.DryRun,
 		simulatedClock{timeScale: conf.TimeScale},
-		pconfig,
+		conf,
 	)
 	m.run()
+}
+
+func validateConfig(conf config) error {
+	totalPotions := conf.NumberOfAbsorbPotions + conf.NumberOfBlackPotions
+	if totalPotions > MaxInventorySlots {
+		return fmt.Errorf("total number of potions exceed inventory size, total: %d", totalPotions)
+	}
+	return nil
 }
