@@ -28,8 +28,8 @@ func newPotionBag(potPositions []position, dryRun bool) *potionBag {
 	}
 	for i := range potBag.potions {
 		potBag.potions[i] = pot{
-			x:     potPositions[i].x,
-			y:     potPositions[i].y,
+			x:     potPositions[i].X,
+			y:     potPositions[i].Y,
 			doses: 4,
 		}
 	}

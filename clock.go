@@ -25,7 +25,7 @@ func (s simulatedClock) Sleep(d time.Duration) {
 }
 
 func (s simulatedClock) Scale(d time.Duration) time.Duration {
-	scaledNano := d.Nanoseconds() * int64(s.timeScale)
+	scaledNano := float32(d.Nanoseconds()) * s.timeScale
 	newDur := time.Duration(scaledNano)
 	return newDur
 }

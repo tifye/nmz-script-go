@@ -8,8 +8,8 @@ import (
 )
 
 type position struct {
-	x uint
-	y uint
+	X uint
+	Y uint
 }
 
 type machineConfig struct {
@@ -68,12 +68,11 @@ func flashPrayerOrb(m *machine) stateFunc {
 }
 
 func drinkBlackPots(m *machine) stateFunc {
-	m.logger.Debug("before drink back pots", "now", time.Now(), "next", m.nextAbsorbRepotTime)
 	if !m.nextBlackRepotTime.Before(time.Now()) {
 		return drinkAbsorbsPots
 	}
 
-	m.logger.Info("drinking pots", "potions", m.blackPotBag.size(), "effective", m.blackPotBag.effectiveSize())
+	m.logger.Info("drinking black pots", "potions", m.blackPotBag.size(), "effective", m.blackPotBag.effectiveSize())
 
 	m.tclock.Sleep(randomMilisecondDuration(100, 15))
 	err := m.blackPotBag.drink()
@@ -90,7 +89,6 @@ func drinkBlackPots(m *machine) stateFunc {
 }
 
 func drinkAbsorbsPots(m *machine) stateFunc {
-	m.logger.Debug("before drink absorb pots", "now", time.Now(), "next", m.nextAbsorbRepotTime)
 	if !m.nextAbsorbRepotTime.Before(time.Now()) {
 		return waitForReset
 	}
@@ -122,7 +120,7 @@ func waitForReset(m *machine) stateFunc {
 
 	start := time.Now()
 	deadline := start.Add(waitDuration)
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(m.tclock.Scale(time.Second))
 	defer ticker.Stop()
 	ticks := 0
 	for cur := range ticker.C {
@@ -134,7 +132,7 @@ func waitForReset(m *machine) stateFunc {
 		}
 
 		ticks = ticks + 1
-		if ticks%5 == 0 || deadline.Sub(cur) < 11*time.Second {
+		if ticks%5 == 0 || deadline.Sub(cur) < m.tclock.Scale(11*time.Second) {
 			m.logger.Infof("%v elapsed", time.Since(start))
 		}
 	}
