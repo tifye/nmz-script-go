@@ -2,7 +2,7 @@
 DryRun = true
 
 # scale all time values by
-TimeScale = 0.25
+TimeScale = 1
 
 # mouse x offset, use incase of multi-monitor set up and game is not on 1st monitor
 # offset by the width of the monitors

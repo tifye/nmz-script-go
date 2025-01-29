@@ -190,22 +190,59 @@ func errState(err error) stateFunc {
 	}
 }
 
+//go:embed calibration/star.png
+var starCalibrationRef []byte
+
 func calibrate(m *machine) stateFunc {
 	m.logger.Info("begining calibration")
 
-	robotgo.DisplayID = 2
-	img, err := robotgo.CaptureImg(0, 0, 1920, 1080)
+	refImageFile := bytes.NewReader(starCalibrationRef)
+	refImage, _, err := image.Decode(refImageFile)
 	if err != nil {
 		return errState(err)
 	}
 
-	return calibratePrayerOrb(img)
+	displayId := -1
+	x, y, w, h := 0, 0, 0, 0
+	var img image.Image
+	for i := range robotgo.DisplaysNum() {
+		x, y, w, h = robotgo.GetDisplayBounds(i)
+		m.logger.Debugf("display %d, [x,y][%d,%d] [w,h][%d,%d]", i, x, y, w, h)
+
+		robotgo.DisplayID = i
+		img, err = robotgo.CaptureImg(x, y, w, h)
+		if err != nil {
+			return errState(err)
+		}
+
+		results := gcv.FindAllImg(refImage, img)
+		if len(results) > 0 {
+			m.logger.Debugf("found star on display %d", i)
+			displayId = i
+			break
+		}
+	}
+
+	if displayId == -1 {
+		return errState(errors.New("could not find display with game"))
+	}
+
+	robotgo.DisplayID = displayId
+	xOffset := 0
+	for i := range robotgo.DisplaysNum() {
+		dx, _, dw, _ := robotgo.GetDisplayBounds(i)
+		if dx < x {
+			xOffset = xOffset + dw
+		}
+	}
+
+	return calibratePrayerOrb(uint(xOffset), img)
 }
 
 //go:embed calibration/prayer_orb.png
 var prayerOrbCalibrationRef []byte
 
-func calibratePrayerOrb(screenshot image.Image) stateFunc {
+func calibratePrayerOrb(xOffset uint, screenshot image.Image) stateFunc {
 	return func(m *machine) stateFunc {
 		m.logger.Info("calibrating prayer orb")
 
@@ -221,7 +258,7 @@ func calibratePrayerOrb(screenshot image.Image) stateFunc {
 			return errState(errors.New("prayer orb calibration: could not locate prayer orb"))
 		}
 
-		m.pconfig.PrayerOrbPosition.X = uint(results[0].Middle.X)
+		m.pconfig.PrayerOrbPosition.X = uint(results[0].Middle.X) + xOffset
 		m.pconfig.PrayerOrbPosition.Y = uint(results[0].Middle.Y)
 
 		moveDeviateRandom(m.pconfig.PrayerOrbPosition.X, m.pconfig.PrayerOrbPosition.Y)
@@ -229,7 +266,7 @@ func calibratePrayerOrb(screenshot image.Image) stateFunc {
 			return errState(err)
 		}
 
-		return calibrateInventory(screenshot)
+		return calibrateInventory(xOffset, screenshot)
 	}
 }
 
@@ -240,7 +277,7 @@ var (
 	inventoryTopLeftCalibrationRef []byte
 )
 
-func calibrateInventory(screenshot image.Image) stateFunc {
+func calibrateInventory(xOffset uint, screenshot image.Image) stateFunc {
 	return func(m *machine) stateFunc {
 		topLeftRefFile := bytes.NewReader(inventoryTopLeftCalibrationRef)
 		topLeftRef, _, err := image.Decode(topLeftRefFile)
@@ -266,11 +303,11 @@ func calibrateInventory(screenshot image.Image) stateFunc {
 		}
 		bottomRight := results[0]
 
-		moveDeviateRandom(uint(topLeft.Middle.X), uint(topLeft.Middle.Y))
+		moveDeviateRandom(uint(topLeft.Middle.X)+xOffset, uint(topLeft.Middle.Y))
 		if _, err := m.sleep(time.Second); err != nil {
 			return errState(err)
 		}
-		moveDeviateRandom(uint(bottomRight.Middle.X), uint(bottomRight.Middle.Y))
+		moveDeviateRandom(uint(bottomRight.Middle.X)+xOffset, uint(bottomRight.Middle.Y))
 		if _, err := m.sleep(time.Second); err != nil {
 			return errState(err)
 		}
@@ -291,7 +328,7 @@ func calibrateInventory(screenshot image.Image) stateFunc {
 				y := topLeft.Middle.Y + cellHeight*cy + cellMiddleYOffset
 
 				si := cy*inventoryColumns + cx
-				inventorySlots[si].X = uint(x)
+				inventorySlots[si].X = uint(x) + xOffset
 				inventorySlots[si].Y = uint(y)
 			}
 		}
