@@ -1,7 +1,7 @@
 # true/false run without clicks
 DryRun = true
 
-VisualDebug = false
+VisualDebug = true
 
 # scale all time values by
 TimeScale = 1
@@ -15,4 +15,4 @@ NumberOfAbsorbPotions = 4
 
 # how many doses does the first potion have?
 DosesOfFirstBlack = 4
-DosesOfFirstAbsorb = 4
+DosesOfFirstAbsorb = 2

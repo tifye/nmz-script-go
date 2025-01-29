@@ -16,6 +16,7 @@ const (
 	InventoryRows     = 7
 	InventoryColumns  = 4
 	MaxInventorySlots = InventoryRows * InventoryColumns
+	MaxDoses          = 4
 )
 
 type config struct {

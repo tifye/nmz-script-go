@@ -42,12 +42,22 @@ func newMachine(
 	tclock clock,
 	conf config,
 ) *machine {
+	blackPotions := newPotionBag(conf.NumberOfBlackPotions, conf.DryRun)
+	for range MaxDoses - conf.DosesOfFirstBlack {
+		blackPotions.drink()
+	}
+
+	absorbPotions := newPotionBag(conf.NumberOfAbsorbPotions, conf.DryRun)
+	for range MaxDoses - conf.DosesOfFirstAbsorb {
+		absorbPotions.drink()
+	}
+
 	return &machine{
 		dryRun:              conf.DryRun,
 		logger:              logger,
 		conf:                conf,
-		blackPotBag:         newPotionBag(conf.NumberOfBlackPotions, conf.DryRun),
-		absorbPotBag:        newPotionBag(conf.NumberOfAbsorbPotions, conf.DryRun),
+		blackPotBag:         blackPotions,
+		absorbPotBag:        absorbPotions,
 		tclock:              tclock,
 		nextAbsorbRepotTime: time.Now().Add(-5 * time.Hour),
 		nextBlackRepotTime:  time.Now().Add(-5 * time.Hour),
@@ -273,16 +283,16 @@ func calibratePrayerOrb(xOffset uint, screenshot image.Image) stateFunc {
 		}
 
 		results := gcv.FindAllImg(refImage, screenshot)
-		m.logger.Debugf("found %d prayer orb matches", len(results))
 		if len(results) <= 0 {
 			return errState(errors.New("prayer orb calibration: could not locate prayer orb"))
 		}
 
+		m.logger.Debugf("found %d prayer orb matches, taking [%d,%d]", len(results), results[0].Middle.X, results[0].Middle.Y)
 		m.prayerOrbPosition.X = uint(results[0].Middle.X) + xOffset
 		m.prayerOrbPosition.Y = uint(results[0].Middle.Y)
 
 		if m.conf.VisualDebug {
-			moveDeviateRandom(m.prayerOrbPosition.X, m.prayerOrbPosition.Y)
+			robotgo.MoveSmooth(int(m.prayerOrbPosition.X), int(m.prayerOrbPosition.Y))
 			if _, err := m.sleep(1 * time.Second); err != nil {
 				return errState(err)
 			}
