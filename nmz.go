@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"errors"
 	"image"
+	"math/rand"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -86,7 +87,7 @@ func flashPrayerOrb(m *machine) stateFunc {
 		return errState(err)
 	}
 
-	robotgo.Move(int(m.pconfig.PrayerOrbPosition.X), int(m.pconfig.PrayerOrbPosition.Y), 10.0, 1.0, 1000)
+	moveDeviateRandom(m.pconfig.PrayerOrbPosition.X, m.pconfig.PrayerOrbPosition.Y)
 	if !m.dryRun {
 		robotgo.Click("left", true)
 	}
@@ -192,8 +193,8 @@ func errState(err error) stateFunc {
 func calibrate(m *machine) stateFunc {
 	m.logger.Info("begining calibration")
 
-	robotgo.DisplayID = 1
-	img, err := robotgo.CaptureImg(-2560, 0, 2560, 1440)
+	robotgo.DisplayID = 2
+	img, err := robotgo.CaptureImg(0, 0, 1920, 1080)
 	if err != nil {
 		return errState(err)
 	}
@@ -221,10 +222,10 @@ func calibratePrayerOrb(screenshot image.Image) stateFunc {
 		}
 
 		m.pconfig.PrayerOrbPosition.X = uint(results[0].Middle.X)
-		m.pconfig.PrayerOrbPosition.X = uint(results[0].Middle.Y)
+		m.pconfig.PrayerOrbPosition.Y = uint(results[0].Middle.Y)
 
-		robotgo.Move(int(m.pconfig.PrayerOrbPosition.X), int(m.pconfig.PrayerOrbPosition.Y))
-		if _, err := m.sleep(2 * time.Second); err != nil {
+		moveDeviateRandom(m.pconfig.PrayerOrbPosition.X, m.pconfig.PrayerOrbPosition.Y)
+		if _, err := m.sleep(1 * time.Second); err != nil {
 			return errState(err)
 		}
 
@@ -265,11 +266,11 @@ func calibrateInventory(screenshot image.Image) stateFunc {
 		}
 		bottomRight := results[0]
 
-		robotgo.Move(topLeft.Middle.X, topLeft.Middle.Y)
+		moveDeviateRandom(uint(topLeft.Middle.X), uint(topLeft.Middle.Y))
 		if _, err := m.sleep(time.Second); err != nil {
 			return errState(err)
 		}
-		robotgo.Move(bottomRight.Middle.X, bottomRight.Middle.Y)
+		moveDeviateRandom(uint(bottomRight.Middle.X), uint(bottomRight.Middle.Y))
 		if _, err := m.sleep(time.Second); err != nil {
 			return errState(err)
 		}
@@ -295,28 +296,36 @@ func calibrateInventory(screenshot image.Image) stateFunc {
 			}
 		}
 
+		delay := 200 * time.Millisecond
 		for i := range m.pconfig.NumBlackPotions {
-			if _, err := m.sleep(300 * time.Millisecond); err != nil {
+			if _, err := m.sleep(delay); err != nil {
 				return errState(err)
 			}
 
 			slot := inventorySlots[i]
 			m.blackPotBag.potions[i].x = slot.X
 			m.blackPotBag.potions[i].y = slot.Y
-			robotgo.Move(int(slot.X), int(slot.Y))
+			moveDeviateRandom(slot.X, slot.Y)
 		}
 
 		for i := range m.pconfig.NumAbsorbPotions {
-			if _, err := m.sleep(300 * time.Millisecond); err != nil {
+			if _, err := m.sleep(delay); err != nil {
 				return errState(err)
 			}
 
 			slot := inventorySlots[m.pconfig.NumBlackPotions+i]
 			m.absorbPotBag.potions[i].x = slot.X
 			m.absorbPotBag.potions[i].y = slot.Y
-			robotgo.Move(int(slot.X), int(slot.Y))
+			moveDeviateRandom(slot.X, slot.Y)
 		}
 
 		return flashPrayerOrb
 	}
+}
+
+func moveDeviateRandom(x, y uint) {
+	n := rand.Intn(8) - 4
+	nx := int(x) + n
+	ny := int(y) + n
+	robotgo.Move(nx, ny)
 }
