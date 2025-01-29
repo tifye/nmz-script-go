@@ -26,6 +26,9 @@ func newPotionBag(numPots uint, dryRun bool) *potionBag {
 		potions: make([]pot, numPots),
 		dryRun:  dryRun,
 	}
+	for i := range potBag.potions {
+		potBag.potions[i].doses = 4
+	}
 	return potBag
 }
 
