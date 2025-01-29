@@ -21,7 +21,6 @@ const (
 type config struct {
 	DryRun                bool
 	TimeScale             float32
-	WindowXOffset         uint
 	NumberOfBlackPotions  uint
 	NumberOfAbsorbPotions uint
 }
