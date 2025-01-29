@@ -57,7 +57,7 @@ func flashPrayerOrb(m *machine) stateFunc {
 	m.logger.Info("flashing prayer orb")
 
 	m.tclock.Sleep(randomMilisecondDuration(300, 300))
-	robotgo.Move(int(m.pconfig.PrayerOrbX), int(m.pconfig.PrayerOrbY))
+	robotgo.Move(int(m.pconfig.PrayerOrbX), int(m.pconfig.PrayerOrbY), 10.0, 1.0, 1000)
 	if !m.dryRun {
 		robotgo.Click("left", true)
 	}
