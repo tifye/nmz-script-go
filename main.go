@@ -9,7 +9,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
-	"github.com/go-vgo/robotgo"
 	hook "github.com/robotn/gohook"
 )
 
@@ -20,8 +19,6 @@ type config struct {
 	NumberOfBlackPotions  uint
 	NumberOfAbsorbPotions uint
 }
-
-var targetDisplay = 2
 
 func main() {
 	logger := log.Default()
@@ -37,10 +34,6 @@ func main() {
 	if err != nil {
 		logger.Fatalf("invalid config: %s", err)
 	}
-
-	robotgo.DisplayID = targetDisplay
-	x, y, w, h := robotgo.GetDisplayBounds(targetDisplay)
-	logger.Debug("target display bounds", "x", x, "y", y, "w", w, "h", h)
 
 	pconfig := machineConfig{
 		NumBlackPotions:  conf.NumberOfBlackPotions,
