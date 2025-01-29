@@ -19,35 +19,35 @@ type position struct {
 	Y uint
 }
 
-type machineConfig struct {
-	PrayerOrbPosition position
-	NumBlackPotions   uint
-	NumAbsorbPotions  uint
-}
-
 type machine struct {
 	ctx                 context.Context
 	sleepTimer          *time.Timer
 	dryRun              bool
 	logger              *log.Logger
-	pconfig             machineConfig
 	drankPots           bool
 	nextBlackRepotTime  time.Time
 	nextAbsorbRepotTime time.Time
 	blackPotBag         *potionBag
 	absorbPotBag        *potionBag
 	tclock              clock
+	prayerOrbPosition   position
+	conf                config
 }
 
 type stateFunc func(*machine) stateFunc
 
-func newMachine(ctx context.Context, logger *log.Logger, dryRun bool, tclock clock, pconfig machineConfig) *machine {
+func newMachine(
+	ctx context.Context,
+	logger *log.Logger,
+	tclock clock,
+	conf config,
+) *machine {
 	return &machine{
-		dryRun:              dryRun,
+		dryRun:              conf.DryRun,
 		logger:              logger,
-		pconfig:             pconfig,
-		blackPotBag:         newPotionBag(pconfig.NumBlackPotions, dryRun),
-		absorbPotBag:        newPotionBag(pconfig.NumAbsorbPotions, dryRun),
+		conf:                conf,
+		blackPotBag:         newPotionBag(conf.NumberOfBlackPotions, conf.DryRun),
+		absorbPotBag:        newPotionBag(conf.NumberOfAbsorbPotions, conf.DryRun),
 		tclock:              tclock,
 		nextAbsorbRepotTime: time.Now().Add(-5 * time.Hour),
 		nextBlackRepotTime:  time.Now().Add(-5 * time.Hour),
@@ -57,7 +57,7 @@ func newMachine(ctx context.Context, logger *log.Logger, dryRun bool, tclock clo
 }
 
 func (m *machine) run() {
-	for state := calibrate; state != nil; {
+	for state := calibrateDisplay; state != nil; {
 		state = state(m)
 	}
 }
@@ -87,7 +87,7 @@ func flashPrayerOrb(m *machine) stateFunc {
 		return errState(err)
 	}
 
-	moveDeviateRandom(m.pconfig.PrayerOrbPosition.X, m.pconfig.PrayerOrbPosition.Y)
+	moveDeviateRandom(m.prayerOrbPosition.X, m.prayerOrbPosition.Y)
 	if !m.dryRun {
 		robotgo.Click("left", true)
 	}
@@ -199,7 +199,7 @@ var landmark2CalibrationRef []byte
 //go:embed calibration/landmark_3.png
 var landmark3CalibrationRef []byte
 
-func calibrate(m *machine) stateFunc {
+func calibrateDisplay(m *machine) stateFunc {
 	m.logger.Info("begining calibration")
 
 	landmark1, _, err := image.Decode(bytes.NewReader(landmark1CalibrationRef))
@@ -278,12 +278,14 @@ func calibratePrayerOrb(xOffset uint, screenshot image.Image) stateFunc {
 			return errState(errors.New("prayer orb calibration: could not locate prayer orb"))
 		}
 
-		m.pconfig.PrayerOrbPosition.X = uint(results[0].Middle.X) + xOffset
-		m.pconfig.PrayerOrbPosition.Y = uint(results[0].Middle.Y)
+		m.prayerOrbPosition.X = uint(results[0].Middle.X) + xOffset
+		m.prayerOrbPosition.Y = uint(results[0].Middle.Y)
 
-		moveDeviateRandom(m.pconfig.PrayerOrbPosition.X, m.pconfig.PrayerOrbPosition.Y)
-		if _, err := m.sleep(1 * time.Second); err != nil {
-			return errState(err)
+		if m.conf.VisualDebug {
+			moveDeviateRandom(m.prayerOrbPosition.X, m.prayerOrbPosition.Y)
+			if _, err := m.sleep(1 * time.Second); err != nil {
+				return errState(err)
+			}
 		}
 
 		return calibrateInventory(xOffset, screenshot)
@@ -323,13 +325,15 @@ func calibrateInventory(xOffset uint, screenshot image.Image) stateFunc {
 		}
 		bottomRight := results[0]
 
-		moveDeviateRandom(uint(topLeft.Middle.X)+xOffset, uint(topLeft.Middle.Y))
-		if _, err := m.sleep(time.Second); err != nil {
-			return errState(err)
-		}
-		moveDeviateRandom(uint(bottomRight.Middle.X)+xOffset, uint(bottomRight.Middle.Y))
-		if _, err := m.sleep(time.Second); err != nil {
-			return errState(err)
+		if m.conf.VisualDebug {
+			moveDeviateRandom(uint(topLeft.Middle.X)+xOffset, uint(topLeft.Middle.Y))
+			if _, err := m.sleep(time.Second); err != nil {
+				return errState(err)
+			}
+			moveDeviateRandom(uint(bottomRight.Middle.X)+xOffset, uint(bottomRight.Middle.Y))
+			if _, err := m.sleep(time.Second); err != nil {
+				return errState(err)
+			}
 		}
 
 		width := bottomRight.Middle.X - topLeft.Middle.X
@@ -352,7 +356,7 @@ func calibrateInventory(xOffset uint, screenshot image.Image) stateFunc {
 		}
 
 		delay := 200 * time.Millisecond
-		for i := range m.pconfig.NumBlackPotions {
+		for i := range m.conf.NumberOfBlackPotions {
 			if _, err := m.sleep(delay); err != nil {
 				return errState(err)
 			}
@@ -360,18 +364,22 @@ func calibrateInventory(xOffset uint, screenshot image.Image) stateFunc {
 			slot := inventorySlots[i]
 			m.blackPotBag.potions[i].x = slot.X
 			m.blackPotBag.potions[i].y = slot.Y
-			moveDeviateRandom(slot.X, slot.Y)
+			if m.conf.VisualDebug {
+				moveDeviateRandom(slot.X, slot.Y)
+			}
 		}
 
-		for i := range m.pconfig.NumAbsorbPotions {
+		for i := range m.conf.NumberOfAbsorbPotions {
 			if _, err := m.sleep(delay); err != nil {
 				return errState(err)
 			}
 
-			slot := inventorySlots[m.pconfig.NumBlackPotions+i]
+			slot := inventorySlots[m.conf.NumberOfBlackPotions+i]
 			m.absorbPotBag.potions[i].x = slot.X
 			m.absorbPotBag.potions[i].y = slot.Y
-			moveDeviateRandom(slot.X, slot.Y)
+			if m.conf.VisualDebug {
+				moveDeviateRandom(slot.X, slot.Y)
+			}
 		}
 
 		return flashPrayerOrb

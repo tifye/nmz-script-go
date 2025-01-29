@@ -20,9 +20,12 @@ const (
 
 type config struct {
 	DryRun                bool
+	VisualDebug           bool
 	TimeScale             float32
 	NumberOfBlackPotions  uint
 	NumberOfAbsorbPotions uint
+	DosesOfFirstBlack     uint
+	DosesOfFirstAbsorb    uint
 }
 
 func main() {
@@ -40,11 +43,6 @@ func main() {
 		logger.Fatalf("invalid config: %s", err)
 	}
 
-	pconfig := machineConfig{
-		NumBlackPotions:  conf.NumberOfBlackPotions,
-		NumAbsorbPotions: conf.NumberOfAbsorbPotions,
-	}
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	ctx, cancelCause := context.WithCancelCause(ctx)
@@ -59,9 +57,8 @@ func main() {
 	m := newMachine(
 		ctx,
 		logger,
-		conf.DryRun,
 		simulatedClock{timeScale: conf.TimeScale},
-		pconfig,
+		conf,
 	)
 	m.run()
 }
